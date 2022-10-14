@@ -1,7 +1,11 @@
 1.Anaconda3 설치
 1.1 필요시 path 설정
-  path C:\Program Files (x86)\Common Files\Intel\Shared Files\fortran\bin\ia32;C:\Program Files (x86)\Common Files\Intel\Shared Libraries\redist\ia32\mpirt;C:\Program Files (x86)\Common Files\Intel\Shared Libraries\redist\ia32\compiler;C:\Program Files (x86)\Common Files\Oracle\Java\javapath;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files\Git\cmd;C:\Users\조동호\AppData\Local\Microsoft\WindowsApps;C:\Program Files\CMake\bin;C:\Program Files\JetBrains\PyCharm Community Edition 2022.1.2\bin;;C:\Users\조동호\AppData\Local\Programs\Microsoft VS Code\bin;C:\Program Files (x86)\ESTsoft\ALSee\x64;C:\ProgramData\Anaconda3;C:\ProgramData\Anaconda3\Library;C:\ProgramData\Anaconda3\Scripts
-
+  path C:\ProgramData\Anaconda3;
+       C:\ProgramData\Anaconda3\Library;
+       C:\ProgramData\Anaconda3\Scripts
+ or 찾기 : 고급 시스템 설정 보기 > 환경변수 > 시스템변수탭, path에 3줄 추가
+  
+  
 2. vscode 설치
 
 3. gitHub에서 floris 가져오기
@@ -22,7 +26,7 @@ conda create --name venv --clone py39
 conda activate py39
 
 conda install -c conda-forge pyoptsparse
-conda install pip (필요한가?)
+conda install pip (필요한가? pip 최신화, upgrade)
 
 conda install -c conda-forge floris
 
