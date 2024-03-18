@@ -32,13 +32,16 @@ tf_5a = 1/(1*s^2+3*s+10);
 tf_5b = 1/s/(1*s^2+3*s+10);
 tf_5d = (1*s^2+2*s+12)/s/(1*s^2+2*s+10);
 
+% 6.8: b c : RHP poles and z
+tf_8b=(s+4)/s/(s+6)*1/(s^2-22)
+tf_8c=(s^2+4*s+3)/s/(s+2.5)^2/(s^2-3*s+5)
 
 %% 
 % 1. TF 1개 선택
 % tf_3e tf_3f tf_3h
 % tf_4a tf_4c  tf_5a tf_5b tf_5d
-fname='tf_5d'
-tf0=tf_5d;
+fname='tf_8c'
+tf0=tf_8c;
 
 
 %
@@ -93,8 +96,8 @@ bode(tf0)
 %% 
 % 3a. 그래프에 추가할 정보 
 % g1) Break point: vline
-% g2) DCgain point for low frequency asymtote
-% g3) asymtote line
+% g2) DCgain point for low frequency asymptote
+% g3) asymptote line
 % g4) Margin
 
 % g0) 그래프 핸들 얻기
@@ -126,9 +129,11 @@ den=coeffs(den_p); % poly to coeffs array
 % 분자, 분모 최소차수 계수
 num0=double(num(1)); % 최소차항 계수
 den0=double(den(1)); % 최소차항 계수
+
 % DC gain
 K0=num0/den0; % bode form의 분자 상수 (K)
-DCg=20*log10(num0/den0); % DC gain (20log10(K))
+K0=abs(K0); % RHS -> negative
+DCg=20*log10(K0); % DC gain (20log10(K))
 
 
 %
@@ -162,7 +167,6 @@ for i_nd = 1:2
         id_r=~isempty(l_root_real)
         id_c=~isempty(l_root_complex)
     
-    
         % 종류별 카운트: real
         if id_r
             v=double(l_root_real);
@@ -178,11 +182,18 @@ for i_nd = 1:2
         % 근은 다르지만, wn 이 같으면? 점근선은 동일. 구분 불필요
         if id_c
             v=double(l_root_complex); % 복소근
-            v=double(abs(l_root_complex)); % wn 
+            v=double(abs(l_root_complex)) % wn, 
+            % for RHS: 부호추가 + real 명령어 때문에 순허수와 분리
+            % 순허수 구분. (real => 0)
+            a1=find(real(l_root_complex)==0);
+            v(a1)=double(abs(l_root_complex(a1)))
+            % 복소수
+            a1=find(real(l_root_complex)~=0);
+            v(a1)=double(round(sign(real(l_root_complex(a1))).*double(abs(l_root_complex(a1))),5)); % 순허수.
             numbers=sort(unique(v));
             cnt=0;
             for i = 1:length(numbers);
-                ind = v==numbers(i);
+                ind = (v==numbers(i));
                 cnt(i)=sum(ind);
             end
             pz_c=[numbers';cnt];
@@ -211,16 +222,37 @@ for i_nd = 1:2
     end
 end
 
+% 기울기 분리. for RHS
+pz(3,:)=pz(2,:);
+
 %
 % 추가. type1 보정
 % s 항 보정. 0이 있으면
-pz0=pz
-a0=find(pz0(1,:)==0)
+pz0=pz;
+a0=find(pz0(1,:)==0);
 if a0>0
     pz0(2,a0)==1;
 else
-    pz0=[pz0 [0;0]];
+    pz0=[pz0 [0;0;0]];
 end
+
+%
+% 추가. RHS 보정  for RHS
+% 
+% real 
+% pz에 음수 추가됨. 
+a0=find(pz0(1,:)<0)
+phase0=180*sum(pz0(3,a0)) 
+if a0>0
+    pz0(1,a0)=-pz0(1,a0); % - break pts
+    pz0(3,a0)=-pz0(3,a0); % - slope for phase
+end
+
+% complex 
+% DCg가 허수 
+% pz에 음수 추가됨. 
+
+
 
 % sort
 % pz 1행: 분기점 정보
@@ -228,6 +260,13 @@ end
 % 1행 기준으로 오름차순 정렬
 [y,in]=sort(pz0(1,:))
 pz=pz0(:,in)
+
+% 3행: 기울기 누적
+pz(4,:)=cumsum(pz(2,:)) % slope for mag
+pz(5,:)=cumsum(pz(3,:)) % slope for phase
+
+% 4행: log10(w) 소수점이 늘어남.
+% pz(4,:)=log10(pz(1,:))
 
 %
 % g4) Margin
@@ -291,112 +330,147 @@ end
 %
 %
 
-% 3a) 점근선1: 크기 (mag)
-% 
-for i = 1:length(pz)
-    % slope
-    slope=sum(pz(2,1:i));
-    % const
-    if i==1
-        x0=1;
-        y0=DCg;
-    else
-        x0=x2;
-        y0=y2; 
-    end
-    if i==length(pz)
-        y0=y2;
-    end
-    % 점근선 수식: 1차식 (기울기+한 점)
-    y=20*slope*(log10(x)-log10(x0))+y0;
-
-    % 점근선 양 끝점
-    if i==length(pz)
-        x1=pz(1,i);
-        x2=ax_xlim(2);
-    else
-        x1=pz(1,i);
-        x2=pz(1,1+i); 
+if 1
+    % 3a) 점근선1: 크기 (mag)
+    % 
+     [n_row,n_col]=size(pz);
+    for i = 1:n_col
+        % slope
+        slope=sum(pz(2,1:i));
+        % const
         if i==1
-            x1=ax_xlim(1);
-        end 
-    end
-    y1=eval(subs(y,x,x1));
-    y2=eval(subs(y,x,x2));
+            x0=1;
+            y0=DCg;
+        else
+            x0=x2;
+            y0=y2; 
+        end
+        if i==n_col
+            y0=y2;
+        end
+        % 점근선 수식: 1차식 (기울기+한 점)
+        y=20*slope*(log10(x)-log10(x0))+y0;
     
-    % 3) 점근선 추가 (cyan)
-    % 크기 그래프 수정
-    hold(mag_ax,'on');
-    % Add an Horizontal line in the Magnitide plot
-    plot(mag_ax,[x1 x2],[y1 y2],'--om');
+        % 점근선 양 끝점
+        if i==n_col
+            x1=pz(1,i); 
+            x2=ax_xlim(2); 
+        else
+            x1=pz(1,i); 
+            x2=pz(1,1+i); 
+            if i==1 
+                x1=ax_xlim(1);
+            end 
+        end
+        y1=eval(subs(y,x,x1));
+        y2=eval(subs(y,x,x2));
+        
+        % 3) 점근선 추가 (cyan)
+        % 크기 그래프 수정
+        hold(mag_ax,'on');
+        % Add an Horizontal line in the Magnitide plot
+        plot(mag_ax,[x1 x2],[y1 y2],'--om');
+        %
+        assymptote(2*i-1,:)=[x1 y1];
+        assymptote(2*i,:)=[x2 y2];
+    end
 end
+
 
 % 3b) 점근선2: 위상 (phase)
 % 
-for i = 1:length(pz)
-    % slope
-    slope=sum(pz(2,1:i));
-    % 점근선 수식. 수평선 (기울기+한 점)
-    y=90*slope;
+if 1
 
-    % 점근선 양 끝점
-    if i==length(pz)
-        x1=pz(1,i);
-        x2=ax_xlim(2);
-    else
-        x1=pz(1,i);
-        x2=pz(1,1+i); 
-        if i==1
-            x1=ax_xlim(1);
-        end 
-    end
-    y1=eval(subs(y,x,x1));
-    y2=eval(subs(y,x,x2));
+    for i = 1:n_col
+        % slope
+        slope=sum(pz(3,1:i));
+        % 점근선 수식. 수평선 (기울기+한 점)
+        y=90*slope;
     
-    % 3) 점근선 추가 (cyan)
-    % 크기 그래프 수정
-    hold(phase_ax,'on');
-    % Add an Horizontal line in the Magnitide plot
-    plot(phase_ax,[x1 x2],[y1 y2],'--om');
+        % 점근선 양 끝점
+        if i==n_col
+            x1=pz(1,i);
+            x2=ax_xlim(2);
+        else
+            x1=pz(1,i);
+            x2=pz(1,1+i); 
+            if i==1
+                x1=ax_xlim(1);
+            end 
+        end
+        y1=eval(subs(y,x,x1))+phase0;
+        y2=eval(subs(y,x,x2))+phase0;
+        
+        % 3) 점근선 추가 (cyan)
+        % 크기 그래프 수정
+        hold(phase_ax,'on');
+        % Add an Horizontal line in the Magnitide plot
+        plot(phase_ax,[x1 x2],[y1 y2],'--om');
+    end
 end
+
 
 %
 % 4) 기타 수정
 %
 
+if 1
+        
+    % 제목
+    % 1) TF 넣기
+    % title({'$y=x^2$','$y=x^2$'},'interpreter','latex')
+    tftitle = latex(subs(tf_sym,x,'s'));
+    title(sprintf('Bode plot of: $$ %s $$', tftitle), 'Interpreter','latex')
+    
+    % 2) Bode form 넣기
+    % tf to sym. 실패. 변환시 보드폼이 유지 안되고, 일반 TF폼으로 변경됨.
+    tf_zpk;
+    [Num,Den] = tfdata(tf_zpk); % control TF
+    num_p = poly2sym(cell2mat(Num),x);
+    den_p = poly2sym(cell2mat(Den),x);
+    tf_zpk_sym=num_p/den_p; % 약분 후 TF
+    
+    
+    % 그리드
+    %
+    %mag_ax.YGrid='off';
+    mag_ax.XGrid='on';
+    phase_ax.XGrid='on';
+end
 
-% 제목
-% 1) TF 넣기
-% title({'$y=x^2$','$y=x^2$'},'interpreter','latex')
-tftitle = latex(subs(tf_sym,x,'s'));
-title(sprintf('Bode plot of: $$ %s $$', tftitle), 'Interpreter','latex')
 
-% 2) Bode form 넣기
-% tf to sym. 실패. 변환시 보드폼이 유지 안되고, 일반 TF폼으로 변경됨.
-tf_zpk;
-[Num,Den] = tfdata(tf_zpk); % control TF
-num_p = poly2sym(cell2mat(Num),x);
-den_p = poly2sym(cell2mat(Den),x);
-tf_zpk_sym=num_p/den_p; % 약분 후 TF
-
-
-% 그리드
-%
-%mag_ax.YGrid='off';
-mag_ax.XGrid='on';
-
-
-% 그래프 저장
+% save: graph, output
 % 
 %exportgraphics(f,'barchart.png','Resolution',300)
+if 1
+    fig=findobj(gcf,'type','figure');
+    filename=strcat('ex_',fname,'.png');
+    saveas(gcf,filename);
+    
+    f=gcf;
+    filename2=strcat('ex_',fname,'_400','.png');
+    exportgraphics(f,filename2,'Resolution',400);
+    
+    % summary and print to file
+    % 파일로 결과창 저장
+    filename4=strcat('ex_',fname,'diary','.txt');
+    diary(filename4)
 
-fig=findobj(gcf,'type','figure');
-filename=strcat('ex_',fname,'.png')
-saveas(gcf,filename)
+    tfzpk
+    DCg
+    pz
+    log10(pz(1,:))
+    assymptote
 
+    diary off
 
-% summary
-%print('DC gain=',K0, 'Const K of bode form', K0)
+    % 파일로 변수 저장 
+    %print('DC gain=z',K0, 'Const K of bode form', K0)
+    a0=log10(pz(1,:));
+    filename3=strcat('ex_',fname,'_mat','.mat');
+    save(filename3, 'tfzpk', 'DCg', 'pz', '', 'assymptote');
+end
+
 
 % 버전
 % 1 matlab (PC): zbook에서 잘되나, 북2 5g에서 잘 안됨.
