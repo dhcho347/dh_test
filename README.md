@@ -1,5 +1,5 @@
 bode plot with
- - assymptote line (pink)
+ - asymptote line (pink)
  - break points vertical line (purple)
  - DCgain (red point)
  - consider RHS poles ans zeros
